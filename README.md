@@ -28,3 +28,6 @@ npm run dev
 4. Server-side Risk Engine ตรวจ SL, lot, max exposure, daily loss และ kill switch ก่อนส่งคำสั่ง
 5. Audit log, secrets management, HTTPS, RBAC, reconciliation และการทดสอบบน demo account
 6. กราฟแท่งเทียนจริงด้วย lightweight-charts + ข้อมูล OHLC จาก MT5
+
+## New: MT5 / Google authentication backend scaffold
+See `backend/README.md` and `backend/.env.example`. Provides token-verified, allowlisted MT5 account, OHLC, trade-history and order-risk-preview endpoints. **Frontend remains demo-only until wired to backend.** Live orders deliberately fail closed; AI model and OAuth UI are not yet implemented. Never commit `.env`.
