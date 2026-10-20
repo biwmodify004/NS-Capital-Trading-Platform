@@ -124,3 +124,7 @@ def kill(_=Depends(user)):
     global _killed
     with _lock: _killed=True
     return {'kill_switch':True,'note':'New orders blocked; existing positions are not automatically closed'}
+
+# V3 signal persistence and protected execution API
+from .execution import register
+register(app,user,terminal)

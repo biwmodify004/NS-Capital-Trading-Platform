@@ -1,27 +1,38 @@
-# NS Capital MT5 Connector — คู่มือภาษาไทย
+# NS Capital Trading Platform V3 — คู่มือภาษาไทย
 
-## สถานะ
-เชื่อมข้อมูลจริงแบบ **อ่านอย่างเดียว**: Health, Balance, Equity, Margin, OHLC, Positions ผ่าน MT5 Python API บน Windows. ไม่มีการส่งคำสั่ง BUY/SELL ไปยัง Broker. ปุ่ม Paper Trading เดิมยังเป็นข้อมูลจำลอง.
+## สถานะที่ทำงานได้
+- React Dashboard 6 หน้า พร้อมข้อมูลสาธิต; Google Sign-In ผ่าน Google Identity Services (ID token)
+- FastAPI ตรวจ Google ID token ฝั่งเซิร์ฟเวอร์และตรวจ allowlist อีเมล
+- MT5 Windows bridge อ่านบัญชี, OHLC, ประวัติดีล เมื่อเปิด `MT5_ENABLED=true`
+- SQLAlchemy บันทึกข้อเสนอ AI (signals) และ audit log ใน SQLite หรือ PostgreSQL
+- Risk Engine: SL/TP, lot step, risk/trade, daily realized + floating, exposure, broker pre-check
+- Kill switch บล็อกคำสั่งใหม่ (ไม่ปิด position เดิม)
 
-## ติดตั้งบน Windows ที่เปิด MT5
-1. ติดตั้ง Python 3.11+ และ MetaTrader 5 Terminal (ล็อกอิน Demo ก่อน)
-2. เปิด PowerShell ในโฟลเดอร์โปรเจกต์
-3. `py -m venv .venv`
-4. `.venv\\Scripts\\activate`
-5. `pip install -r backend/requirements.txt`
-6. สร้างค่า API Key แบบสุ่ม เช่น `python -c "import secrets;print(secrets.token_urlsafe(36))"`
-7. ตั้งค่าตัวแปรสภาพแวดล้อมใน PowerShell: `$env:BRIDGE_API_KEY='คีย์ที่สร้าง'` และ `$env:ALLOWED_ORIGINS='http://127.0.0.1:5500'`
-8. รัน `uvicorn backend.server:app --host 127.0.0.1 --port 8000`
-9. เปิด PowerShell อีกหน้าต่างแล้วรัน `python -m http.server 5500 --bind 127.0.0.1` จากโฟลเดอร์โปรเจกต์
-10. เปิด `http://127.0.0.1:5500` และใส่ Bridge URL `http://127.0.0.1:8000` กับ API Key ในกล่อง MT5 Connector แล้วกดเชื่อมต่อ
+**ข้อจำกัดสำคัญ:** ระบบ AI อัตโนมัติยังไม่ส่งคำสั่งจริง: `/api/v3/signals/{id}/execute` คืน HTTP 501 โดยตั้งใจ จนกว่าจะมี execution worker ที่ผ่านการทดสอบเรื่อง idempotency, การรีสตาร์ต, partial fill, broker fill mode และการตรวจสอบความเสี่ยงแบบอะตอมมิก ห้ามนำไปอ้างว่าเป็นระบบเทรดเงินจริงที่พร้อมใช้
 
-> หมายเหตุ: ให้รันจากโฟลเดอร์หลักที่มี `backend/` และ `index.html`. ถ้าใช้เครื่องหลาย MT5 terminals ให้กำหนด `MT5_TERMINAL_PATH` เป็นพาธของ terminal64.exe และรัน Bridge แยก process/port สำหรับแต่ละ terminal.
+## ติดตั้ง
+1. Windows 10/11 หรือ Windows Server VPS, MT5 Terminal ติดตั้งและล็อกอินบัญชี Demo
+2. ติดตั้ง Node.js 20+ และ Python 3.11+; เปิด Terminal ที่โฟลเดอร์หลัก
+3. `npm install` แล้ว `npm run dev` (เว็บ http://localhost:5173)
+4. `cd backend`; `python -m venv .venv`; Windows: `.venv\Scripts\activate`; `pip install -r requirements.txt`
+5. คัดลอก `backend/.env.example` เป็น `backend/.env` และ `.env.example` เป็น `.env` ในโฟลเดอร์หลัก
+6. สร้าง Google OAuth Client ID ประเภท Web application ใน Google Cloud Console, ใส่ Authorized JavaScript origins: `http://localhost:5173` และใส่ Client ID เดียวกันทั้งสอง .env; ตั้ง ALLOWED_EMAILS เป็นอีเมลผู้ดูแลจริง
+7. เปิด Backend **จากโฟลเดอร์หลัก**: `uvicorn backend.main:app --host 127.0.0.1 --port 8000` (หากใช้ `.env` ใน backend ให้รันจาก backend ด้วย `uvicorn main:app` จะใช้ไม่ได้เพราะ relative import; แนะนำตั้ง env ผ่าน root หรือใช้ `uvicorn backend.main:app --env-file backend/.env`)
+8. สำหรับอ่าน MT5 ให้ตั้ง `MT5_ENABLED=true`, ตั้ง terminal path และตรวจ `/api/health` แล้วล็อกอิน Google บนเว็บ
+9. สำหรับ PostgreSQL สร้าง database แล้วตั้ง `DATABASE_URL=postgresql+psycopg://...` ก่อนเปิด API (ตารางสร้างโดย SQLAlchemy)
 
-## Local/VPS / GitHub Pages
-หน้าเว็บที่เผยแพร่ผ่าน HTTPS (GitHub Pages) **ไม่สามารถเรียก HTTP localhost บน VPS โดยตรงได้**. ให้ติดตั้ง Bridge บน VPS Windows และวาง HTTPS reverse proxy ที่มี TLS, การตรวจสอบตัวตน และการจำกัด IP หรือเชื่อมผ่าน VPN/Tailscale แล้วใช้ Frontend ที่โฮสต์ในเครือข่ายที่เข้าถึง Bridge ได้. อย่าเปิดพอร์ต 8000 สู่สาธารณะหรือเก็บ API Key ใน GitHub. ควรใช้ Backend กลางพร้อม OAuth/Session, แทนการใส่คีย์ Bridge ในเว็บสาธารณะ.
+## Local + VPS
+- ติดตั้ง Backend และ MT5 บน **Windows host แต่ละเครื่อง**; Frontend ติดต่อกับ Backend ที่เลือกผ่าน `VITE_API_BASE`
+- ไม่แชร์บัญชี MT5 ระหว่าง host ที่ส่งคำสั่งพร้อมกัน; เลือก active bridge เพียงตัวเดียว
+- Production ต้องใช้ HTTPS ผ่าน reverse proxy / private network; อย่าเปิด port MT5/8000 สู่สาธารณะโดยตรง
+- ใช้ process เดียวสำหรับ order execution; Kill switch แบบ in-memory จะกลับไปล็อกทุกครั้งเมื่อรีสตาร์ต (fail closed)
+- Google ID token เป็น token อายุสั้น: เวอร์ชันนี้ยังไม่มีระบบ refresh/session production
 
-## ข้อจำกัดสำคัญ
-- ปุ่ม Buy/Sell ยังทำ Paper Trading ไม่ใช่ Live Execution.
-- ข้อมูล Account/Equity ที่อ่านได้จะอัปเดตบน Dashboard หลังเชื่อมต่อ; OHLC และ Positions มี API พร้อมให้ Frontend รุ่นถัดไปดึง แต่กราฟเดิมยังเป็นกราฟจำลอง.
-- ไม่มีการยืนยันการทำงานกับ MT5 จริงในสภาพแวดล้อมนี้ ต้องทดสอบบน Windows ของคุณ.
-- ห้ามใส่รหัสผ่าน MT5 ในหน้าเว็บหรือส่งให้ผู้อื่น.
+## AI Trading
+- POST `/api/v3/signals` เพื่อบันทึกสัญญาณที่ผ่าน schema; `confidence` เป็นค่าที่ผู้ส่งกำหนด **ไม่ใช่ผลโมเดลที่เทรนแล้ว**
+- GET `/api/v3/signals` ดูประวัติข้อเสนอ; POST `/api/v3/orders/preview` คำนวณ risk จาก MT5
+- เปิด AI_EXECUTION_ENABLED และ TRADING_ENABLED อย่างเดียว **ไม่ทำให้ส่งคำสั่งจริง**: ระบบ fail closed ตามข้อจำกัดด้านบน
+- ต้องพัฒนา model inference + validation + backtesting/walk-forward + live demo shadow mode และ independent risk checks ก่อน production
+
+## ความปลอดภัย
+อย่าใส่รหัส MT5, Google Client Secret หรือ DATABASE_URL ใน Frontend/GitHub; อย่าปิด kill switch ในบัญชีเงินจริงก่อนผ่านการทดสอบ Demo และการตรวจสอบการทำงานของระบบ
